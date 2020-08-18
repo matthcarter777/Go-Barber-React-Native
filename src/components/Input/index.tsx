@@ -1,4 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useImperativeHandle,
+  forwardRef
+} from 'react';
 import { TextInputProps } from 'react-native';
 import { useField } from '@unform/core';
 
@@ -13,10 +20,35 @@ interface InputValueReference {
   value: string;
 }
 
-const Input: React.FC<InputProps> = ({ name, icon, ...rest}) => {
+interface InputRef {
+   focus(): void;
+}
+
+const Input: React.RefForwardingComponent<InputRef, InputProps> = ({ name, icon, ...rest}, ref) => {
   const InputElementRef = useRef<any>(null)
   const { registerField, defaultValue, fieldName, error } = useField(name);
   const inputValueRef = useRef<InputValueReference>({ value: defaultValue });
+
+  const [isFocused, setIsFocused] = useState(false);
+  const [isField, setIsField] = useState(false);
+
+  const handleInputFocus = useCallback(() => {
+    setIsFocused(true);
+  }, []);
+
+  const handlesInputBlur = useCallback(() => {
+    setIsFocused(false);
+
+    setIsField(!!inputValueRef.current.value);
+  }, [])
+
+
+  // passando elementos do componente filho para o componente pai
+  useImperativeHandle(ref, () => ({
+    focus() {
+      InputElementRef.current.focus();
+    }
+  }));
 
   useEffect(() => {
     registerField<string>({
@@ -32,17 +64,22 @@ const Input: React.FC<InputProps> = ({ name, icon, ...rest}) => {
         InputElementRef.current.clear();
       }
     })
-  },[fieldName, registerField])
+  },[fieldName, registerField]);
 
   return (
-    <Container>
-      <Icon name={icon} size={20} color="#666360" />
+    <Container isFocused={isFocused} isErrored={!!error}>
+      <Icon
+        name={icon}
+        size={20}
+        color={isFocused || isField ? '#ff9000' : '#666360'} />
 
       <TextInput
         ref={InputElementRef}
         keyboardAppearance="dark"
         placeholderTextColor="#666360"
         defaultValue={defaultValue}
+        onFocus={handleInputFocus}
+        onBlur={handlesInputBlur}
         onChangeText={(value) => {
           inputValueRef.current.value = value;
         }}
@@ -52,4 +89,4 @@ const Input: React.FC<InputProps> = ({ name, icon, ...rest}) => {
   );
 };
 
-export default Input;
+export default forwardRef(Input);
